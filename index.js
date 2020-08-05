@@ -16,13 +16,13 @@ app.post('/usuario/crear', async (req, res) => {
     sequelize.query('INSERT INTO usuarios (nombre, direccion, hash, nombre_usuario, telefono, correo) VALUES (?, ?, ?, ?, ?, ?)', {replacements: [nombre, direccion, hash, usuario, telefono, email]})
     .then((resultados) => {
         idUsuario = resultados[0];
-        res.json(idUsuario);
+        res.status(201).json("Created");
     }).catch((err) => {
-        res.json("error al crear el usuario")
+        res.status(422).json({error: "Datos inválidos"})
     })
 });
 // Login usuario
-app.post('/login', async (req, res) => {
+app.post('usuario/login', async (req, res) => {
     const { usuario, contraseña } = req.body;
     const hash = await bcrypt.hash(contraseña, 10);
     console.log(hash)
@@ -36,26 +36,38 @@ app.post('/login', async (req, res) => {
         } else{
             if (datos.admin === 1) {
                 if (await bcrypt.compare(contraseña, datos.hash)) {
-                    res.json(`¡¡¡Bienvenido/a administrador/a ${datos.nombre}!!!`);
-                } else{
-                    res.json("inicio de sesion incorrecto!!");
+                    res.status(200).json(`¡¡¡Bienvenido/a administrador/a ${datos.nombre}!!!`);
                 }
             } else {
                 if (await bcrypt.compare(contraseña, datos.hash)) {
-                    res.json(`¡¡¡Bienvenido/a usuario/a ${datos.nombre}!!!`);
-                } else{
-                    res.json("inicio de sesion incorrecto!!");
+                    res.status(200).json(`¡¡¡Bienvenido/a usuario/a ${datos.nombre}!!!`);
                 }
             }
         }
+    }).catch((err) => {
+        res.status(401).json({error: "Inicio de sesion incorrecto!!"});
     });    
+});
+app.get('/usuario/ver', (req, res) => {
+    if (admin === 1) {
+        sequelize.query(`SELECT * FROM usuarios`, {type: sequelize.QueryTypes.SELECT})
+        .then((resultados) => {
+            res.status(200).json(resultados)
+        }).catch((err) => {
+            res.status(500).json({error: "Internal Server Error"});
+        })
+    } else {
+        res.status(403).json('No tiene permisos de realizar esta acción!')
+    }
 });
 let listaProductos = [];
 app.get('/producto/ver', (req, res) => {
     sequelize.query(`SELECT * FROM productos`, {type: sequelize.QueryTypes.SELECT})
     .then((resultados) => {
-        res.json(resultados)
+        res.status(200).json(resultados)
         listaProductos = resultados;
+    }).catch((err) => {
+        res.status(500).json({error: "Internal Server Error"});
     })
 });
 // Listar productos disponibles
@@ -94,39 +106,29 @@ app.post('/pedido/crear', (req, res) => {
         listaPedido.forEach(id => {
             sequelize.query('INSERT INTO pedidos_productos (id_pedido, id_producto) VALUES (?, ?)', {replacements: [resultados[0], id]})
             .then((resultados) => {
-                res.json("Producto relacionado al pedido actual");
+                res.status(200).json("Producto relacionado al pedido actual");
             }).catch((err) => {
                 console.error("Ocurrió un error: "+err)
-                res.json("error al relacionar productos con el pedido actual")
+                res.status(500).json("error al relacionar productos con el pedido actual")
             })
         });
-        res.json("Pedido creado");
+        res.status(201).json("Pedido creado");
     }).catch((err) => {
         console.error("Ocurrió un error: "+err)
-        res.json("error al crear el pedido")
+        res.status(422).json("error al crear el pedido")
     })
 });
-app.put('/pedido/estado/actualizar', (req, res) => {
+app.put('/pedido/actualizar/estado', (req, res) => {
     const { idPedido, nuevoEstado } = req.body;
     if (admin === 1) {
         sequelize.query('UPDATE pedidos SET estado = ? WHERE id = ?', {replacements: [nuevoEstado, idPedido]})
         .then((resultados) => {
-            res.json('Estado del pedido actualizado con éxito');
+            res.status(200).json('Estado del pedido actualizado con éxito');
         }).catch((err) => {
-            res.json("error al actualizar estado")
+            res.status(500).json("error al actualizar estado")
         })
     } else {
-        res.json('No tiene permisos de realizar esta acción!')
-    }
-});
-app.get('/usuario/ver', (req, res) => {
-    if (admin === 1) {
-        sequelize.query(`SELECT * FROM usuarios`, {type: sequelize.QueryTypes.SELECT})
-        .then((resultados) => {
-            res.json(resultados)
-        })
-    } else {
-        res.json('No tiene permisos de realizar esta acción!')
+        res.status(403).json('No tiene permisos de realizar esta acción!')
     }
 });
 app.post('/producto/crear', (req, res) => {
@@ -135,12 +137,12 @@ app.post('/producto/crear', (req, res) => {
         sequelize.query('INSERT INTO productos (nombre, precio) VALUES (?, ?)', {replacements: [nombre, precio]})
         .then((resultados) => {
             console.log(resultados);
-            res.json("Pedido creado");
+            res.status(201).json("Pedido creado");
         }).catch((err) => {
-            res.json("Error al crear el pedido")
+            res.status(422).json("Error al crear el pedido, datos inválidos")
         })
     } else {
-        res.json('No tiene permisos de realizar esta acción!')
+        res.status(403).json('No tiene permisos de realizar esta acción!')
     }
 });
 app.put('/producto/actualizar', (req, res) => {
@@ -151,25 +153,25 @@ app.put('/producto/actualizar', (req, res) => {
                 case 'nombre':
                     sequelize.query('UPDATE productos SET nombre = ? WHERE id = ?', {replacements: [nombre, idProducto]})
                     .then((resultados) => {
-                        res.json('Producto actualizado');
+                        res.status(200).json('Producto actualizado');
                     }).catch((err) => {
-                        res.json("error al actualizar producto")
+                        res.status(500).json("error al actualizar producto")
                     })
                     break;
                 case 'precio':
                     sequelize.query('UPDATE productos SET precio = ? WHERE id = ?', {replacements: [precio, idProducto]})
                     .then((resultados) => {
-                        res.json('Producto actualizado');
+                        res.status(200).json('Producto actualizado');
                     }).catch((err) => {
-                        res.json("error al actualizar estado")
+                        res.status(500).json("error al actualizar producto")
                     })
                     break;
                 case 'disponibilidad':
                     sequelize.query('UPDATE productos SET disponible = ? WHERE id = ?', {replacements: [disponibilidad, idProducto]})
                     .then((resultados) => {
-                        res.json('Producto actualizado');
+                        res.status(200).json('Producto actualizado');
                     }).catch((err) => {
-                        res.json("error al actualizar estado")
+                        res.status(500).json("error al actualizar producto")
                     })
                     break;
                 default:
@@ -177,7 +179,7 @@ app.put('/producto/actualizar', (req, res) => {
             }
         })
     } else {
-        res.json('No tiene permisos de realizar esta acción!')
+        res.status(403).json('No tiene permisos de realizar esta acción!')
     }
 });
 app.delete('/producto/eliminar', (req, res) => {
@@ -187,13 +189,13 @@ app.delete('/producto/eliminar', (req, res) => {
             sequelize.query('DELETE FROM productos WHERE id = ?', {replacements: [id]})
             .then((resultados) => {
                 console.log(resultados);
-                res.json("Producto eliminado");
+                res.status(200).json("Producto eliminado");
             }).catch((err) => {
-                res.json("Error al eliminar el producto")
+                res.status(500).json("Error al eliminar el producto")
             })
         })
     } else {
-        res.json('No tiene permisos de realizar esta acción!')
+        res.status(403).json('No tiene permisos de realizar esta acción!')
     }
 });
 app.delete('/pedido/eliminar', (req, res) => {
@@ -203,13 +205,13 @@ app.delete('/pedido/eliminar', (req, res) => {
             sequelize.query('DELETE FROM pedidos WHERE id = ?', {replacements: [id]})
             .then((resultados) => {
                 console.log(resultados);
-                res.json("Pedido eliminado");
+                res.status(200).json("Pedido eliminado");
             }).catch((err) => {
-                res.json("Error al eliminar el pedido")
+                res.status(500).json("Error al eliminar el pedido")
             })
         })
     } else {
-        res.json('No tiene permisos de realizar esta acción!')
+        res.status(403).json('No tiene permisos de realizar esta acción!')
     }
 });
 app.put('/pedido/actualizar', (req, res) => {
@@ -220,41 +222,41 @@ app.put('/pedido/actualizar', (req, res) => {
                 case 'estado':
                     sequelize.query('UPDATE pedidos SET estado = ? WHERE id = ?', {replacements: [estado, idPedido]})
                     .then((resultados) => {
-                        res.json('Pedido actualizado');
+                        res.status(200).json('Pedido actualizado');
                     }).catch((err) => {
-                        res.json("error al actualizar pedido");
+                        res.status(500).json("error al actualizar pedido");
                     })
                     break;
                 case 'hora':
                     sequelize.query('UPDATE pedidos SET hora = ? WHERE id = ?', {replacements: [hora, idPedido]})
                     .then((resultados) => {
-                        res.json('Pedido actualizado');
+                        res.status(200).json('Pedido actualizado');
                     }).catch((err) => {
-                        res.json("error al actualizar pedido");
+                        res.status(500).json("error al actualizar pedido");
                     })
                     break;
                 case 'descripcion':
                     sequelize.query('UPDATE pedidos SET descripcion = ? WHERE id = ?', {replacements: [descripcion, idPedido]})
                     .then((resultados) => {
-                        res.json('Pedido actualizado');
+                        res.status(200).json('Pedido actualizado');
                     }).catch((err) => {
-                        res.json("error al actualizar pedido");
+                        res.status(500).json("error al actualizar pedido");
                     })
                     break;
                 case 'tipo_pago':
                     sequelize.query('UPDATE pedidos SET tipo_pago = ? WHERE id = ?', {replacements: [tipo_pago, idPedido]})
                     .then((resultados) => {
-                        res.json('Pedido actualizado');
+                        res.status(200).json('Pedido actualizado');
                     }).catch((err) => {
-                        res.json("error al actualizar pedido");
+                        res.status(500).json("error al actualizar pedido");
                     })
                     break;
                 case 'valor_total':
                     sequelize.query('UPDATE pedidos SET valor_total = ? WHERE id = ?', {replacements: [valor_total, idPedido]})
                     .then((resultados) => {
-                        res.json('Pedido actualizado');
+                        res.status(200).json('Pedido actualizado');
                     }).catch((err) => {
-                        res.json("error al actualizar pedido");
+                        res.status(500).json("error al actualizar pedido");
                     })
                     break;      
                 default:
@@ -262,7 +264,7 @@ app.put('/pedido/actualizar', (req, res) => {
             }
         })
     } else {
-        res.json('No tiene permisos de realizar esta acción!')
+        res.status(403).json('No tiene permisos de realizar esta acción!')
     }
 });
 app.listen(3000, () => {
