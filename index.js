@@ -22,7 +22,7 @@ app.post('/usuario/crear', async (req, res) => {
     })
 });
 // Login usuario
-app.post('usuario/login', async (req, res) => {
+app.post('/usuario/login', async (req, res) => {
     const { usuario, contraseña } = req.body;
     const hash = await bcrypt.hash(contraseña, 10);
     console.log(hash)
