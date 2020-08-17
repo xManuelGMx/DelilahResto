@@ -7,3 +7,5 @@
 5. Dentro de la base de datos, en la tabla de usuarios, ya se encuentra registrado un usuario con rol de _Administrador_ para realizar el ejercicio práctico, el usuario y la contraseña son: _admin_ y _admin1234_ respectivamente.
 # Documentación:
 https://app.swaggerhub.com/apis-docs/xManuelGMx/DelilahResto/1.0.0
+# Colección de Postman:
+Se agregó una colección de Postman con todos los endpoints y sus estructuras
