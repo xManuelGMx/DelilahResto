@@ -1,4 +1,5 @@
 const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 
 const Sequelize = require('sequelize');
 const sequelize = new Sequelize('mysql://root@localhost:3306/delilahResto')
@@ -7,16 +8,22 @@ const express = require('express');
 const app = express();
 app.use(express.json());
 
+const passJWT = "pass";
+
 // Registrar usuario
-let idUsuario;
-let admin = 0;
 app.post('/usuario/crear', async (req, res) => {
     const { usuario, nombre, email, telefono, direccion, contraseña } = req.body;
     const hash = await bcrypt.hash(contraseña, 10);
+
     sequelize.query('INSERT INTO usuarios (nombre, direccion, hash, nombre_usuario, telefono, correo) VALUES (?, ?, ?, ?, ?, ?)', {replacements: [nombre, direccion, hash, usuario, telefono, email]})
     .then((resultados) => {
-        idUsuario = resultados[0];
-        res.status(201).json("Created");
+        const info = {
+            idUsuario: resultados[0],
+            usuario: usuario,
+            admin: 0
+        };
+        const token = jwt.sign(info, passJWT);
+        res.status(201).json({ token });
     }).catch((err) => {
         res.status(422).json({error: "Datos inválidos"})
     })
@@ -29,18 +36,22 @@ app.post('/usuario/login', async (req, res) => {
     sequelize.query(`SELECT id, nombre, nombre_usuario, hash, admin FROM usuarios WHERE nombre_usuario = "${usuario}"`, {type: sequelize.QueryTypes.SELECT})
     .then(async (resultados) => {
         const datos = resultados[0];
-        idUsuario = datos.id;
-        admin = datos.admin;
+        const info = {
+            idUsuario: datos.id,
+            usuario: usuario,
+            admin: datos.admin
+        };
+        const token = jwt.sign(info, passJWT);
         if (!datos) {
-            res.json("Datos incorrectos!");
+            res.status(422).json("Datos incorrectos!");
         } else{
             if (datos.admin === 1) {
                 if (await bcrypt.compare(contraseña, datos.hash)) {
-                    res.status(200).json(`¡¡¡Bienvenido/a administrador/a ${datos.nombre}!!!`);
+                    res.status(200).json({"mensaje": `¡¡¡Bienvenido/a administrador/a ${datos.nombre}!!!`, token});
                 }
             } else {
                 if (await bcrypt.compare(contraseña, datos.hash)) {
-                    res.status(200).json(`¡¡¡Bienvenido/a usuario/a ${datos.nombre}!!!`);
+                    res.status(200).json({"mensaje": `¡¡¡Bienvenido/a usuario/a ${datos.nombre}!!!`, token});
                 }
             }
         }
@@ -49,7 +60,9 @@ app.post('/usuario/login', async (req, res) => {
     });    
 });
 app.get('/usuario/ver', (req, res) => {
-    if (admin === 1) {
+    const token = req.headers.authorization.split(' ')[1];
+    const info = jwt.verify(token, passJWT);
+    if (info.admin === 1) {
         sequelize.query(`SELECT * FROM usuarios`, {type: sequelize.QueryTypes.SELECT})
         .then((resultados) => {
             res.status(200).json(resultados)
@@ -64,43 +77,69 @@ let listaProductos = [];
 app.get('/producto/ver', (req, res) => {
     sequelize.query(`SELECT * FROM productos`, {type: sequelize.QueryTypes.SELECT})
     .then((resultados) => {
-        res.status(200).json(resultados)
         listaProductos = resultados;
+        res.status(200).json(resultados)
     }).catch((err) => {
         res.status(500).json({error: "Internal Server Error"});
     })
 });
 // Listar productos disponibles
 let listaPedido = [];
-function agregarProducto(id_producto){
-    let producto = listaProductos.find(e => e.id === id_producto);
+function agregarProducto(id_usuario, cantidad){
+    let producto = listaProductos.find(e => e.id === +id_usuario);
     if (producto.disponible === 1) {
-        listaPedido.push(id_producto);
+        for (let i = 1; i <= cantidad; i++) {
+            listaPedido.push(+id_usuario);
+        }
     }
-    console.log(listaPedido);
 }
 app.post('/pedido/crear', (req, res) => {
-    // Recibir array con id's de los productos en lista
+    const token = req.headers.authorization.split(' ')[1];
+    const info = jwt.verify(token, passJWT);
+
+    // Recibir objeto con id's y cantidad de los productos en lista
     const { lista, tipoPago } = req.body;
+    const ids = Object.keys(lista);
+    const cant = Object.values(lista);
     
     listaPedido = [];
-    lista.forEach(e => agregarProducto(e));
+    for (let i = 0; i < ids.length; i++) {
+        agregarProducto(ids[i], cant[i]);
+    }
+    agregarProducto(1,1);
+
+    console.log(listaPedido);
+    let descp = "";
+    let n = 1;
+    let cantidadFinal = [];
+    for (let i = 1; i < listaPedido.length; i++) {
+        let productoAnterior = listaProductos.find(e => e.id === listaPedido[i-1]);
+        let productoActual = listaProductos.find(e => e.id === listaPedido[i]);
+        let nAnterior = n;
+        if (productoAnterior.nombre === productoActual.nombre) {
+            n++;
+        } else{
+            n=1;
+        }
+        let nActual = n;
+        if (nActual <= nAnterior) { 
+            cantidadFinal.push(nAnterior);
+            descp += productoAnterior.nombre +" x "+ nAnterior + ", ";
+        }
+    }
+    descp = descp.substr(0, descp.length-2)
+    console.log(`Descripción: ${descp}`);
+    
+    listaPedido.pop();
     let valorTotal = 0;
     listaPedido.forEach(id => {
         let producto = listaProductos.find(e => e.id === id);
         valorTotal += producto.precio;
     })
-    let descp = "";
-    listaPedido.forEach(id => {
-        let producto = listaProductos.find(e => e.id === id);
-        descp += producto.nombre + ", ";
-        console.log(producto.nombre)
-    })
-    descp = descp.substr(0, descp.length-2)
+
     const fecha = new Date();
     let horaActual = fecha.getHours()+":"+fecha.getMinutes();
-    
-    sequelize.query('INSERT INTO pedidos (estado, hora, descripcion, tipo_pago, valor_total, id_usuario) VALUES (?, ?, ?, ?, ?, ?)', {replacements: ["Creado", horaActual, descp, tipoPago, valorTotal, idUsuario]})
+    sequelize.query('INSERT INTO pedidos (estado, hora, descripcion, tipo_pago, valor_total, id_usuario) VALUES (?, ?, ?, ?, ?, ?)', {replacements: ["Creado", horaActual, descp, tipoPago, valorTotal, info.idUsuario]})
     .then((resultados) => {
         console.log(resultados[0]);
         listaPedido.forEach(id => {
@@ -118,9 +157,13 @@ app.post('/pedido/crear', (req, res) => {
         res.status(422).json("error al crear el pedido")
     })
 });
+
 app.put('/pedido/actualizar/estado', (req, res) => {
+    const token = req.headers.authorization.split(' ')[1];
+    const info = jwt.verify(token, passJWT);
+
     const { idPedido, nuevoEstado } = req.body;
-    if (admin === 1) {
+    if (info.admin === 1) {
         sequelize.query('UPDATE pedidos SET estado = ? WHERE id = ?', {replacements: [nuevoEstado, idPedido]})
         .then((resultados) => {
             res.status(200).json('Estado del pedido actualizado con éxito');
@@ -132,22 +175,28 @@ app.put('/pedido/actualizar/estado', (req, res) => {
     }
 });
 app.post('/producto/crear', (req, res) => {
+    const token = req.headers.authorization.split(' ')[1];
+    const info = jwt.verify(token, passJWT);
+    
     const { nombre, precio } = req.body
-    if (admin === 1) {
+    if (info.admin === 1) {
         sequelize.query('INSERT INTO productos (nombre, precio) VALUES (?, ?)', {replacements: [nombre, precio]})
         .then((resultados) => {
             console.log(resultados);
-            res.status(201).json("Pedido creado");
+            res.status(201).json("Producto creado");
         }).catch((err) => {
-            res.status(422).json("Error al crear el pedido, datos inválidos")
+            res.status(422).json("Error al crear el producto, datos inválidos")
         })
     } else {
         res.status(403).json('No tiene permisos de realizar esta acción!')
     }
 });
 app.put('/producto/actualizar', (req, res) => {
+    const token = req.headers.authorization.split(' ')[1];
+    const info = jwt.verify(token, passJWT);
+    
     const { idProducto, cambios, nombre, precio, disponibilidad } = req.body;
-    if (admin === 1) {
+    if (info.admin === 1) {
         cambios.forEach(e => {
             switch (e) {
                 case 'nombre':
@@ -183,8 +232,11 @@ app.put('/producto/actualizar', (req, res) => {
     }
 });
 app.delete('/producto/eliminar', (req, res) => {
+    const token = req.headers.authorization.split(' ')[1];
+    const info = jwt.verify(token, passJWT);
+    
     const { listaId } = req.body;
-    if (admin === 1) {
+    if (info.admin === 1) {
         listaId.forEach(id => {
             sequelize.query('DELETE FROM productos WHERE id = ?', {replacements: [id]})
             .then((resultados) => {
@@ -199,8 +251,11 @@ app.delete('/producto/eliminar', (req, res) => {
     }
 });
 app.delete('/pedido/eliminar', (req, res) => {
+    const token = req.headers.authorization.split(' ')[1];
+    const info = jwt.verify(token, passJWT);
+    
     const { listaId } = req.body;
-    if (admin === 1) {
+    if (info.admin === 1) {
         listaId.forEach(id => {
             sequelize.query('DELETE FROM pedidos WHERE id = ?', {replacements: [id]})
             .then((resultados) => {
@@ -215,8 +270,11 @@ app.delete('/pedido/eliminar', (req, res) => {
     }
 });
 app.put('/pedido/actualizar', (req, res) => {
+    const token = req.headers.authorization.split(' ')[1];
+    const info = jwt.verify(token, passJWT);
+    
     const { idPedido, cambios, estado, hora, descripcion, tipo_pago, valor_total } = req.body;
-    if (admin === 1) {
+    if (info.admin === 1) {
         cambios.forEach(e => {
             switch (e) {
                 case 'estado':

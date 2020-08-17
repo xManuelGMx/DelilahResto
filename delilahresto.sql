@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 07-08-2020 a las 19:25:30
+-- Tiempo de generación: 17-08-2020 a las 22:20:27
 -- Versión del servidor: 10.4.11-MariaDB
 -- Versión de PHP: 7.4.5
 
@@ -58,8 +58,17 @@ CREATE TABLE `productos` (
   `id` int(11) NOT NULL,
   `nombre` varchar(40) NOT NULL,
   `precio` float NOT NULL,
-  `disponible` tinyint(4) NOT NULL DEFAULT 1
+  `disponible` tinyint(1) NOT NULL DEFAULT 1
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+--
+-- Volcado de datos para la tabla `productos`
+--
+
+INSERT INTO `productos` (`id`, `nombre`, `precio`, `disponible`) VALUES
+(1, 'Arroz', 1500, 1),
+(2, 'Pasta', 800, 1),
+(3, 'Galletas', 1200, 1);
 
 -- --------------------------------------------------------
 
@@ -75,7 +84,7 @@ CREATE TABLE `usuarios` (
   `nombre_usuario` varchar(40) NOT NULL,
   `telefono` varchar(30) NOT NULL,
   `correo` varchar(100) NOT NULL,
-  `admin` tinyint(1) NOT NULL DEFAULT 0
+  `admin` tinyint(1) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 --
@@ -83,7 +92,7 @@ CREATE TABLE `usuarios` (
 --
 
 INSERT INTO `usuarios` (`id`, `nombre`, `direccion`, `hash`, `nombre_usuario`, `telefono`, `correo`, `admin`) VALUES
-(84, 'Administrador', 'Oficinas Delilah Restó', '$2b$10$aA/Kw9oX4qB6YKTe8iqu2uQoFxip9tiBx5FppBSQPNPe.E8Fembq6', 'admin', '111 2223344', 'administrador@delilahresto.com', 1);
+(1, 'Administrador', 'Oficinas Delilah Restó', '$2b$10$aA/Kw9oX4qB6YKTe8iqu2uQoFxip9tiBx5FppBSQPNPe.E8Fembq6', 'admin', '111 2223344', 'administrador@delilahresto.com', 1);
 
 --
 -- Índices para tablas volcadas
@@ -124,19 +133,19 @@ ALTER TABLE `usuarios`
 -- AUTO_INCREMENT de la tabla `pedidos`
 --
 ALTER TABLE `pedidos`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=49;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=57;
 
 --
 -- AUTO_INCREMENT de la tabla `productos`
 --
 ALTER TABLE `productos`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=104;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=105;
 
 --
 -- AUTO_INCREMENT de la tabla `usuarios`
 --
 ALTER TABLE `usuarios`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=87;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=89;
 
 --
 -- Restricciones para tablas volcadas
