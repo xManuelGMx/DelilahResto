@@ -8,4 +8,4 @@
 # Documentación:
 https://app.swaggerhub.com/apis-docs/xManuelGMx/DelilahResto/1.0.0
 # Colección de Postman:
-Se agregó una colección de Postman con todos los endpoints y sus estructuras
+Se agregó una colección de Postman con todos los endpoints y sus estructuras, para un fácil uso de la API.
